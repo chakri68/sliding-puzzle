@@ -1,6 +1,8 @@
+import { BFS } from "./BFS";
 import { Board, Direction, TileIndex } from "./Board";
 import { Confetti, ConfettiOptions } from "./confetti";
 import "./scss/global.scss";
+import { asyncTimeout } from "./utils";
 
 console.log("Connected!");
 
@@ -11,14 +13,11 @@ const tileTemplate = document.getElementById(
 
 let tileEls: HTMLDivElement[][];
 
-const board = new Board(
-  [
-    [1, 2, null],
-    [4, 5, 3],
-    [7, 8, 6],
-  ],
-  [0, 2]
-);
+const board = new Board([
+  [1, 2, null],
+  [4, 5, 3],
+  [7, 8, 6],
+]);
 
 function renderBoard(board: Board) {
   const [sizeX, sizeY] = board.size;
@@ -69,7 +68,7 @@ function initializeBoard(board: Board) {
       const tileEl = tileTemplate.content.firstElementChild?.cloneNode(
         true
       ) as HTMLDivElement;
-      tileEl.addEventListener("click", () => handleMouseClick([i, j]));
+      tileEl.addEventListener("click", () => moveTile([i, j]));
       if (tile === null) tileEl.classList.add("empty");
       tileEl.textContent = (tile ?? "").toString();
       tileEl.style.gridArea = `${i + 1} / ${j + 1}`;
@@ -80,18 +79,22 @@ function initializeBoard(board: Board) {
   }
 }
 
-function handleMouseClick(tile: [number, number]) {
-  const direction = board.getAllowedMove(tile);
+async function moveTile(
+  tile: TileIndex,
+  dir?: Direction,
+  saveToHistory = true
+) {
+  const direction: Direction | null = dir ?? board.getAllowedMove(tile);
   if (direction === null) {
     animate(tileEls[tile[0]][tile[1]], ["no-move"], 500);
     return;
   }
-  animate(
+  await animate(
     tileEls[tile[0]][tile[1]],
     ["moving", Direction[direction]],
     500,
     () => {
-      board.moveTile(tile, direction);
+      board.moveTile(tile, direction, saveToHistory);
       tileEls[tile[0]][tile[1]].classList.remove(
         "moving",
         Direction[direction]
@@ -102,17 +105,16 @@ function handleMouseClick(tile: [number, number]) {
   );
 }
 
-function animate(
+async function animate(
   element: HTMLElement,
   classList: string[],
   duration: number,
   callback: () => void = () => {}
 ) {
   element.classList.add(...classList);
-  setTimeout(() => {
-    element.classList.remove(...classList);
-    callback();
-  }, duration);
+  await asyncTimeout(duration);
+  element.classList.remove(...classList);
+  callback();
 }
 
 // Initialize the canvas and its 2D context
@@ -135,6 +137,58 @@ const confettiOptions: Partial<ConfettiOptions> = {
 };
 
 const confetti = new Confetti(ctx, confettiOptions);
+
+// Initiliaze buttons
+const shuffleEl = document.getElementById("shuffle") as HTMLButtonElement;
+const solveEl = document.getElementById("solve") as HTMLButtonElement;
+const resetEl = document.getElementById("reset") as HTMLButtonElement;
+
+shuffleEl.disabled = true;
+// TODO: NEEDS WORK
+// shuffleEl.addEventListener("click", async () => {
+//   const moves = Board.shuffle(board, 5);
+//   console.log(moves);
+//   for (const { tile, direction } of moves) {
+//     await moveTile(tile, direction);
+//   }
+// });
+
+solveEl.addEventListener("click", async () => {
+  const solution = BFS.solve(board, Board.generate(board.size));
+  if (solution === null) {
+    animate(solveEl, ["no-solution"], 500);
+    return;
+  }
+  for (const { tile, direction } of solution) {
+    await moveTile(tile, direction, false);
+  }
+  board.resetHistory();
+});
+
+resetEl.addEventListener("click", async () => {
+  const history = board.getChronologicalHistory();
+  for (const { tile, direction } of history) {
+    await moveTile(tile, direction, false);
+  }
+  board.resetHistory();
+});
+
+// Add keyboard shortcuts
+
+// ctrl + z -> undo
+document.addEventListener("keydown", async (e) => {
+  if (e.ctrlKey && e.key === "z") {
+    const lastMove = board.getMoveForUndo();
+    console.log({ lastMove });
+    if (lastMove === null) {
+      console.warn("No moves to undo!");
+      return;
+    }
+    if (lastMove.tile === null || lastMove.direction === null) return;
+    await moveTile(lastMove.tile, lastMove.direction, false);
+    board.undoFromHistory();
+  }
+});
 
 function main() {
   initializeBoard(board);

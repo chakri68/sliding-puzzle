@@ -6,6 +6,10 @@ $border-radius: 4px;
 
 $tile-gap: 0.25rem;
 
+:root {
+  color-scheme: dark;
+}
+
 html,
 body {
   margin: 0;
@@ -15,6 +19,11 @@ body {
 }
 
 body {
+  display: grid;
+  place-items: center;
+
+  width: 100vw;
+  height: 100vh;
   background-color: $gray-dark;
 }
 
@@ -32,11 +41,25 @@ body {
   pointer-events: none;
 }
 
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+#tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  button {
+    user-select: none;
+  }
+}
+
 #board-wrapper {
   display: grid;
   place-items: center;
-  width: 100vw;
-  height: 100vh;
   z-index: 10;
 }
 
