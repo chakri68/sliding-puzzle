@@ -94,7 +94,7 @@ export class Board implements BoardType {
     return null;
   }
 
-  static generate(size: TileIndex) {
+  static generate(size: TileIndex, shuffle: boolean = false) {
     const [sizeX, sizeY] = size;
     const tiles: (number | null)[][] = [];
     for (let i = 0; i < sizeX; i++) {
@@ -104,51 +104,94 @@ export class Board implements BoardType {
       }
     }
     tiles[sizeX - 1][sizeY - 1] = null;
+
+    if (shuffle) {
+      // Shuffle the tiles if shuffle is true
+      for (let i = tiles.length - 1; i > 0; i--) {
+        for (let j = tiles[i].length - 1; j > 0; j--) {
+          const randX = Math.floor(Math.random() * (i + 1));
+          const randY = Math.floor(Math.random() * (j + 1));
+
+          const temp = tiles[i][j];
+          tiles[i][j] = tiles[randX][randY];
+          tiles[randX][randY] = temp;
+        }
+      }
+    }
+
     return new Board(tiles);
   }
 
   static getMovesForShuffle(board: Board, times: number): Move[] {
-    const shuffledBoard = new Board(board.tiles);
+    const shuffledBoard = Board.cloneBoard(board);
     const [sizeX, sizeY] = shuffledBoard.size;
     const moves: Move[] = [];
+
     for (let i = 0; i < times; i++) {
       const [eX, eY] = shuffledBoard.emptyTile;
-      const direction = Math.floor(Math.random() * 4);
+      const validMoves: number[] = [];
+
+      // Check and store valid moves
+      if (
+        eX > 0 &&
+        moves[moves.length - 1]?.direction !==
+          getOppositeDirection(Direction.Down)
+      ) {
+        validMoves.push(Direction.Up);
+      }
+      if (
+        eX < sizeX - 1 &&
+        moves[moves.length - 1]?.direction !==
+          getOppositeDirection(Direction.Up)
+      ) {
+        validMoves.push(Direction.Down);
+      }
+      if (
+        eY > 0 &&
+        moves[moves.length - 1]?.direction !==
+          getOppositeDirection(Direction.Right)
+      ) {
+        validMoves.push(Direction.Left);
+      }
+      if (
+        eY < sizeY - 1 &&
+        moves[moves.length - 1]?.direction !==
+          getOppositeDirection(Direction.Left)
+      ) {
+        validMoves.push(Direction.Right);
+      }
+
+      // Shuffle the valid moves using Fisher-Yates algorithm
+      for (let j = validMoves.length - 1; j > 0; j--) {
+        const randomIndex = Math.floor(Math.random() * (j + 1));
+        [validMoves[j], validMoves[randomIndex]] = [
+          validMoves[randomIndex],
+          validMoves[j],
+        ];
+      }
+
+      const direction = validMoves[0]; // Pick the first move from shuffled valid moves
+
       switch (direction) {
         case Direction.Up:
-          if (eX === 0) {
-            i -= 1;
-            continue;
-          }
           shuffledBoard.moveTile([eX - 1, eY], Direction.Down, false);
           moves.push({ tile: [eX - 1, eY], direction: Direction.Down });
           break;
         case Direction.Down:
-          if (eX === sizeX - 1) {
-            i -= 1;
-            continue;
-          }
           shuffledBoard.moveTile([eX + 1, eY], Direction.Up, false);
           moves.push({ tile: [eX + 1, eY], direction: Direction.Up });
           break;
         case Direction.Left:
-          if (eY === 0) {
-            i -= 1;
-            continue;
-          }
           shuffledBoard.moveTile([eX, eY - 1], Direction.Right, false);
           moves.push({ tile: [eX, eY - 1], direction: Direction.Right });
           break;
         case Direction.Right:
-          if (eY === sizeY - 1) {
-            i -= 1;
-            continue;
-          }
           shuffledBoard.moveTile([eX, eY + 1], Direction.Left, false);
           moves.push({ tile: [eX, eY + 1], direction: Direction.Left });
           break;
       }
     }
+
     return moves;
   }
 
@@ -173,6 +216,22 @@ export class Board implements BoardType {
 
   public undoFromHistory() {
     this.history.pop();
+  }
+
+  public findTile(tileValue: number | null): TileIndex {
+    for (let i = 0; i < this.size[0]; i++) {
+      for (let j = 0; j < this.size[1]; j++) {
+        if (this.tiles[i][j] === tileValue) {
+          return [i, j];
+        }
+      }
+    }
+    throw new Error(`Tile ${tileValue} not found on the board.`);
+  }
+
+  public static cloneBoard(board: Board) {
+    const newTiles = board.tiles.map((row) => row.map((tile) => tile));
+    return new Board(newTiles);
   }
 }
 
@@ -202,4 +261,17 @@ export function getOppositeMove(move: Move) {
     tile: [newX, newY] as TileIndex,
     direction: newDirection,
   };
+}
+
+export function getOppositeDirection(dir: Direction) {
+  switch (dir) {
+    case Direction.Up:
+      return Direction.Down;
+    case Direction.Down:
+      return Direction.Up;
+    case Direction.Left:
+      return Direction.Right;
+    case Direction.Right:
+      return Direction.Left;
+  }
 }

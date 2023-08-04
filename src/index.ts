@@ -1,3 +1,4 @@
+import { AStar } from "./AStar";
 import { BFS } from "./BFS";
 import { Board, Direction, TileIndex } from "./Board";
 import { Confetti, ConfettiOptions } from "./confetti";
@@ -13,7 +14,7 @@ const tileTemplate = document.getElementById(
 
 let tileEls: HTMLDivElement[][];
 
-const board = new Board([
+var board = new Board([
   [1, 2, null],
   [4, 5, 3],
   [7, 8, 6],
@@ -43,6 +44,10 @@ function reRenderTile([i, j]: TileIndex) {
   tileEl.style.cursor = getCursor([i, j]);
 }
 
+function handleBoardSolve() {
+  confetti.addConfetti(window.innerWidth / 2, 100);
+}
+
 function getCursor(tile: TileIndex) {
   const direction = board.getAllowedMove(tile);
   if (direction === null) return "not-allowed";
@@ -59,6 +64,7 @@ function getCursor(tile: TileIndex) {
 }
 
 function initializeBoard(board: Board) {
+  boardEl.innerHTML = "";
   const [sizeX, sizeY] = board.size;
   tileEls = [];
   for (let i = 0; i < sizeX; i++) {
@@ -100,7 +106,7 @@ async function moveTile(
         Direction[direction]
       );
       renderBoard(board);
-      board.isSolved() && confetti.addConfetti(window.innerWidth / 2, 100);
+      board.isSolved() && handleBoardSolve();
     }
   );
 }
@@ -142,19 +148,18 @@ const confetti = new Confetti(ctx, confettiOptions);
 const shuffleEl = document.getElementById("shuffle") as HTMLButtonElement;
 const solveEl = document.getElementById("solve") as HTMLButtonElement;
 const resetEl = document.getElementById("reset") as HTMLButtonElement;
+const newBoardEl = document.getElementById("new-board") as HTMLButtonElement;
 
-shuffleEl.disabled = true;
-// TODO: NEEDS WORK
-// shuffleEl.addEventListener("click", async () => {
-//   const moves = Board.shuffle(board, 5);
-//   console.log(moves);
-//   for (const { tile, direction } of moves) {
-//     await moveTile(tile, direction);
-//   }
-// });
+shuffleEl.addEventListener("click", async () => {
+  const moves = Board.getMovesForShuffle(board, 25);
+  for (const { tile, direction } of moves) {
+    await moveTile(tile, direction);
+  }
+});
 
 solveEl.addEventListener("click", async () => {
-  const solution = BFS.solve(board, Board.generate(board.size));
+  const solution = AStar.solve(board, Board.generate(board.size));
+  console.log({ solution });
   if (solution === null) {
     animate(solveEl, ["no-solution"], 500);
     return;
@@ -162,7 +167,6 @@ solveEl.addEventListener("click", async () => {
   for (const { tile, direction } of solution) {
     await moveTile(tile, direction, false);
   }
-  board.resetHistory();
 });
 
 resetEl.addEventListener("click", async () => {
@@ -171,6 +175,42 @@ resetEl.addEventListener("click", async () => {
     await moveTile(tile, direction, false);
   }
   board.resetHistory();
+});
+
+// New board dialog handling
+const newBoardDialog = document.getElementById(
+  "new-board-dialog"
+) as HTMLDialogElement;
+const newBoardForm = document.getElementById(
+  "new-board-form"
+) as HTMLFormElement;
+newBoardEl.addEventListener("click", () => {
+  newBoardDialog.showModal();
+  newBoardDialog.addEventListener("click", handleDialogClose);
+});
+
+function handleDialogClose(ev: MouseEvent) {
+  const rect = (ev.currentTarget as HTMLDialogElement).getBoundingClientRect();
+  const isInDialog =
+    rect.top <= ev.clientY &&
+    ev.clientY <= rect.top + rect.height &&
+    rect.left <= ev.clientX &&
+    ev.clientX <= rect.left + rect.width;
+  if (!isInDialog) {
+    newBoardDialog.close();
+    newBoardForm.reset();
+  }
+  newBoardDialog.removeEventListener("click", handleDialogClose);
+}
+
+newBoardForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.currentTarget as HTMLFormElement);
+  const sizeX = parseInt(formData.get("rows") as string);
+  const sizeY = parseInt(formData.get("columns") as string);
+  board = Board.generate([sizeX, sizeY], true);
+  initializeBoard(board);
+  newBoardDialog.close();
 });
 
 // Add keyboard shortcuts

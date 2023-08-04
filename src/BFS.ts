@@ -40,50 +40,50 @@ export class BFS {
     const [emptyX, emptyY] = currentState.board.emptyTile;
     if (emptyX > 0) {
       const newState: BFSNode = {
-        board: BFS.cloneBoard(currentState.board),
+        board: Board.cloneBoard(currentState.board),
         previous: currentState,
         move: {
           direction: Direction.Down,
           tile: [emptyX - 1, emptyY],
         },
       };
-      newState.board.moveTile([emptyX - 1, emptyY], Direction.Down);
+      newState.board.moveTile([emptyX - 1, emptyY], Direction.Down, false);
       newStates.push(newState);
     }
     if (emptyX < currentState.board.size[0] - 1) {
       const newState: BFSNode = {
-        board: BFS.cloneBoard(currentState.board),
+        board: Board.cloneBoard(currentState.board),
         previous: currentState,
         move: {
           direction: Direction.Up,
           tile: [emptyX + 1, emptyY],
         },
       };
-      newState.board.moveTile([emptyX + 1, emptyY], Direction.Up);
+      newState.board.moveTile([emptyX + 1, emptyY], Direction.Up, false);
       newStates.push(newState);
     }
     if (emptyY > 0) {
       const newState: BFSNode = {
-        board: BFS.cloneBoard(currentState.board),
+        board: Board.cloneBoard(currentState.board),
         previous: currentState,
         move: {
           direction: Direction.Right,
           tile: [emptyX, emptyY - 1],
         },
       };
-      newState.board.moveTile([emptyX, emptyY - 1], Direction.Right);
+      newState.board.moveTile([emptyX, emptyY - 1], Direction.Right, false);
       newStates.push(newState);
     }
     if (emptyY < currentState.board.size[1] - 1) {
       const newState: BFSNode = {
-        board: BFS.cloneBoard(currentState.board),
+        board: Board.cloneBoard(currentState.board),
         previous: currentState,
         move: {
           direction: Direction.Left,
           tile: [emptyX, emptyY + 1],
         },
       };
-      newState.board.moveTile([emptyX, emptyY + 1], Direction.Left);
+      newState.board.moveTile([emptyX, emptyY + 1], Direction.Left, false);
       newStates.push(newState);
     }
     return newStates.filter((state) => {
@@ -95,11 +95,6 @@ export class BFS {
 
   private static isSolved(currentState: Board, goalState: Board) {
     return BFS.hash(currentState) === BFS.hash(goalState);
-  }
-
-  private static cloneBoard(board: Board) {
-    const newTiles = board.tiles.map((row) => row.map((tile) => tile));
-    return new Board(newTiles);
   }
 
   private static hash(board: Board) {
